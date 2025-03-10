@@ -2,7 +2,6 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WiFiMulti.h>
-#include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
 
 // Loads credentials and settings from config.h
@@ -12,12 +11,11 @@ ESP8266WiFiMulti wifiMulti;   // WiFi connection manager
 
 ESP8266WebServer server(80);
 
-unsigned long lastMDNSCheck = 0;
-const unsigned long MDNS_Restart_Interval = 60000; // Check every 60 seconds
-
 HCSR04 hc(D5, D6);  // Initialisation of HCSR04 (trig pin, echo pin)
 
 float volumePercentage;
+
+long currentTime = 0;
 
 unsigned long lastLEDBlink = 0;
 int blinkDelay = 0;
@@ -28,6 +26,8 @@ int ind = 0;                         // Index for circular buffer
 float currentDistance = WATER_MIN_DISTANCE;
 float sum = 0;                       // Sum of the distances for moving average
 float averageDistance = 0;           // Moving average of the distances
+unsigned long lastDistanceUpdate = 0;
+const unsigned long DistanceUpdateDelay = 1000;  // Update every 1 second
 
 // Serial output messages delay
 unsigned long lastSerialOutput = 0;
@@ -63,65 +63,18 @@ void setup() {
   Serial.print("IP address:\t");   //
   Serial.println(WiFi.localIP());  // Send the IP address of the ESP8266 to the computer
 
-  if (MDNS.begin(MDNS_SERVICE_NAME)) {  // Start the mDNS responder for esp8266.local
-    Serial.println("mDNS responder started");
-  } else {
-    Serial.println("Error setting up MDNS responder!");
-  }
-
   server.on("/", handleRoot);          // Call the 'handleRoot' function when a client requests URI "/"
   server.on("/update", handleUpdate);  // Regularly updates the client with up-to-date data
   server.onNotFound(handleNotFound);   // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
 
   server.begin();  // Actually start the server
   Serial.println("HTTP server started");
-}
 
-void restartMDNS() {
-  Serial.println("Restarting mDNS...");
-  MDNS.end();  
-  delay(500);
-  if (MDNS.begin(MDNS_SERVICE_NAME)) {
-    Serial.println("mDNS restarted.");
-    lastMDNSCheck = millis();
-  } else {
-    Serial.println("mDNS restart failed!");
-  }
+  // Set the initial time
+  currentTime = millis();
 }
 
 void loop() {
-  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Water Level Section ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-  // Measure distance
-  currentDistance = hc.dist();
-
-  // Update moving average
-  sum -= distances[ind];                      // Subtract the oldest value from the sum
-  distances[ind] = currentDistance;           // Replace it with the new value
-  sum += currentDistance;                     // Add the new value to the sum
-  ind = (ind + 1) % movingAverageSize;        // Update the index circularly
-  averageDistance = sum / movingAverageSize;  // Calculate moving average
-  volumePercentage = map(averageDistance, WATER_MAX_DISTANCE, WATER_MIN_DISTANCE, 0, 1000) / 10.0;
-
-  // Print the average distance
-  if (millis() - lastSerialOutput > SerialOutputDelay) {
-    lastSerialOutput = millis();
-    Serial.print("Distance: ");
-    Serial.print(currentDistance);
-    Serial.print(" cm | ");
-    Serial.print("Avg distance: ");
-    Serial.print(averageDistance);
-    Serial.print(" cm | ");
-    Serial.print("Volume %: ");
-    Serial.println(volumePercentage);
-  }
-
-  // Blink LED proportionally to the distance
-  blinkDelay = map(constrain(volumePercentage, 0, 100), 0, 100, 500, 40);   // Map the percentage to a delay between 500ms and 40ms
-  if (millis() - lastLEDBlink > blinkDelay/2) {
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));   // Toggle the LED on/off
-    lastLEDBlink = millis();
-  }
-
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Web Server Section ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 
   if (WiFi.status() != WL_CONNECTED) {
@@ -134,21 +87,51 @@ void loop() {
       yield();
     }
     Serial.println("\nReconnected to Wi-Fi. New IP address: " + WiFi.localIP().toString());
-    restartMDNS();
-  }
-
-  // Periodically restart mDNS service
-  if (millis() - lastMDNSCheck > MDNS_Restart_Interval) {
-      lastMDNSCheck = millis();
-      restartMDNS();
   }
 
   // Handle incoming clients
   server.handleClient();
 
-  MDNS.update();  // Update mDNS responder
+  // Update the current time
+  currentTime = millis();
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Water Level Section ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
   
-  Serial.println("Loop end");
+  // Update moving average
+  if (currentTime - lastDistanceUpdate > DistanceUpdateDelay) {
+    lastDistanceUpdate = currentTime;
+    currentDistance = hc.dist();                // Measure distance
+    sum -= distances[ind];                      // Subtract the oldest value from the sum
+    distances[ind] = currentDistance;           // Replace it with the new value
+    sum += currentDistance;                     // Add the new value to the sum
+    ind = (ind + 1) % movingAverageSize;        // Update the index circularly
+    averageDistance = sum / movingAverageSize;  // Calculate moving average
+    volumePercentage = map(averageDistance, WATER_MAX_DISTANCE, WATER_MIN_DISTANCE, 0, 1000) / 10.0;
+    // Blink LED proportionally to the distance
+    blinkDelay = map(constrain(volumePercentage, 0, 100), 0, 100, 500, 40);   // Map the percentage to a frequency between 2Hz and 25Hz
+  }
+
+  // Print the average distance
+  if (currentTime - lastSerialOutput > SerialOutputDelay) {
+    lastSerialOutput = currentTime;
+    Serial.print("Distance: ");
+    Serial.print(currentDistance);
+    Serial.print(" cm | ");
+    Serial.print("Avg distance: ");
+    Serial.print(averageDistance);
+    Serial.print(" cm | ");
+    Serial.print("Volume %: ");
+    Serial.println(volumePercentage);
+  }
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LED Blink Section ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+
+  if (currentTime - lastLEDBlink > blinkDelay/2) {
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));   // Toggle the LED on/off
+    lastLEDBlink = currentTime;
+  }
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 
   yield();
 }
