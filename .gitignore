@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# Custom configuration file
+config.h
+
+# VS Code files
+.vscode/

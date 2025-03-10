@@ -1,0 +1,15 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Defines the SSID and password of the Wi-Fi network
+#define WIFI_1_SSID   "YOUR-SSID"
+#define WIFI_1_PASSW  "YOUR-PASSWORD"
+
+// Defines the mDNS service name
+#define MDNS_SERVICE_NAME "waterlevel"
+
+// Defines the Maximum and Minimum distance values for calculating the volume percentage
+#define WATER_MAX_DISTANCE 400.0	// Empty container (0%)
+#define WATER_MIN_DISTANCE 0.0		// Full container (100%)
+
+#endif
