@@ -13,7 +13,7 @@ ESP8266WiFiMulti wifiMulti;   // WiFi connection manager
 ESP8266WebServer server(80);
 
 unsigned long lastMDNSCheck = 0;
-const unsigned long MDNS_Restart_Interval = 20000; // Check every 20 seconds
+const unsigned long MDNS_Restart_Interval = 60000; // Check every 60 seconds
 
 HCSR04 hc(D0, D1);  // Initialisation of HCSR04 (trig pin, echo pin)
 
@@ -29,7 +29,9 @@ float currentDistance = WATER_MIN_DISTANCE;
 float sum = 0;                       // Sum of the distances for moving average
 float averageDistance = 0;           // Moving average of the distances
 
-unsigned long lastUpdateTime = 0;
+// Serial output messages delay
+unsigned long lastSerialOutput = 0;
+const unsigned long SerialOutputDelay = 3000;  // Print every 3 seconds
 
 void handleRoot();
 void handleUpdate();
@@ -50,9 +52,11 @@ void setup() {
 
   Serial.println("Connecting ...");
   while (wifiMulti.run() != WL_CONNECTED) {  // Wait for the Wi-Fi to connect: scan for Wi-Fi networks, and connect to the strongest of the networks above
-    delay(250);
+    delay(50);
     Serial.print('.');
+    yield();
   }
+  
   Serial.println('\n');
   Serial.print("Connected to ");
   Serial.println(WiFi.SSID());     // Tell us what network we're connected to
@@ -98,10 +102,17 @@ void loop() {
   volumePercentage = map(averageDistance, WATER_MAX_DISTANCE, WATER_MIN_DISTANCE, 0, 1000) / 10.0;
 
   // Print the average distance
-  Serial.print("Avg distance: ");
-  Serial.print(averageDistance);
-  Serial.print(" ~~ Volume %: ");
-  Serial.println(volumePercentage);
+  if (millis() - lastSerialOutput > SerialOutputDelay) {
+    lastSerialOutput = millis();
+    Serial.print("Distance: ");
+    Serial.print(currentDistance);
+    Serial.print(" cm | ");
+    Serial.print("Avg distance: ");
+    Serial.print(averageDistance);
+    Serial.print(" cm | ");
+    Serial.print("Volume %: ");
+    Serial.println(volumePercentage);
+  }
 
   // Blink LED proportionally to the distance
   blinkDelay = map(constrain(volumePercentage, 0, 100), 0, 100, 500, 40);   // Map the percentage to a delay between 500ms and 40ms
@@ -112,9 +123,12 @@ void loop() {
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Wi-Fi disconnected. Reconnecting...");
+    WiFi.disconnect();
+    WiFi.reconnect();
     while (wifiMulti.run() != WL_CONNECTED) {
-      delay(250);
+      delay(50);
       Serial.print(".");
+      yield();
     }
     Serial.println("\nReconnected to Wi-Fi");
     restartMDNS();
@@ -130,6 +144,8 @@ void loop() {
   server.handleClient();
 
   MDNS.update();  // Update mDNS responder
+
+  yield();
 }
 
 void handleRoot() {
