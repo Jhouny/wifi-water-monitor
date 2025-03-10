@@ -15,7 +15,7 @@ ESP8266WebServer server(80);
 unsigned long lastMDNSCheck = 0;
 const unsigned long MDNS_Restart_Interval = 60000; // Check every 60 seconds
 
-HCSR04 hc(D0, D1);  // Initialisation of HCSR04 (trig pin, echo pin)
+HCSR04 hc(D5, D6);  // Initialisation of HCSR04 (trig pin, echo pin)
 
 float volumePercentage;
 
@@ -83,6 +83,7 @@ void restartMDNS() {
   delay(500);
   if (MDNS.begin(MDNS_SERVICE_NAME)) {
     Serial.println("mDNS restarted.");
+    lastMDNSCheck = millis();
   } else {
     Serial.println("mDNS restart failed!");
   }
@@ -116,8 +117,10 @@ void loop() {
 
   // Blink LED proportionally to the distance
   blinkDelay = map(constrain(volumePercentage, 0, 100), 0, 100, 500, 40);   // Map the percentage to a delay between 500ms and 40ms
-  if (millis() - lastLEDBlink > blinkDelay/2)
+  if (millis() - lastLEDBlink > blinkDelay/2) {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));   // Toggle the LED on/off
+    lastLEDBlink = millis();
+  }
 
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Web Server Section ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 
@@ -130,7 +133,7 @@ void loop() {
       Serial.print(".");
       yield();
     }
-    Serial.println("\nReconnected to Wi-Fi");
+    Serial.println("\nReconnected to Wi-Fi. New IP address: " + WiFi.localIP().toString());
     restartMDNS();
   }
 
@@ -144,6 +147,8 @@ void loop() {
   server.handleClient();
 
   MDNS.update();  // Update mDNS responder
+  
+  Serial.println("Loop end");
 
   yield();
 }
