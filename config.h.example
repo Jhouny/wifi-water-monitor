@@ -5,8 +5,8 @@
 #define WIFI_1_SSID   "YOUR-SSID"
 #define WIFI_1_PASSW  "YOUR-PASSWORD"
 
-// Defines the mDNS service name
-#define MDNS_SERVICE_NAME "waterlevel"
+// Defines the reserved IP address of the server
+const char* SERVER_IP_ADDRESS = "000.111.222.333";
 
 // Defines the Maximum and Minimum distance values for calculating the volume percentage
 #define WATER_MAX_DISTANCE 400.0	// Empty container (0%)
