@@ -33,6 +33,10 @@ const unsigned long DistanceUpdateDelay = 1000;  // Update every 1 second
 unsigned long lastSerialOutput = 0;
 const unsigned long SerialOutputDelay = 3000;  // Print every 3 seconds
 
+// Restart board every 30 minutes
+const unsigned long restartDelay = 30 * 60 * 1000;  // 30min in milliseconds
+unsigned long lastRestart = 0;
+
 void handleRoot();
 void handleUpdate();
 void handleNotFound();
@@ -69,12 +73,18 @@ void setup() {
 
   server.begin();  // Actually start the server
   Serial.println("HTTP server started");
-
-  // Set the initial time
-  currentTime = millis();
 }
 
 void loop() {
+  // Update the current time
+  currentTime = millis();
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Restart Section ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+  if (currentTime - lastRestart > restartDelay) {
+    Serial.println("Restarting...");
+    ESP.restart();
+  }
+
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Web Server Section ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 
   if (WiFi.status() != WL_CONNECTED) {
@@ -91,9 +101,6 @@ void loop() {
 
   // Handle incoming clients
   server.handleClient();
-
-  // Update the current time
-  currentTime = millis();
 
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Water Level Section ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
   
