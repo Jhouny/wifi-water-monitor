@@ -5,11 +5,20 @@
 #define WIFI_1_SSID   "YOUR-SSID"
 #define WIFI_1_PASSW  "YOUR-PASSWORD"
 
-// Defines the reserved IP address of the server
-const char* SERVER_IP_ADDRESS = "000.111.222.333";
+// ESP32 station network settings. Set USE_STATIC_IP to 0 to use DHCP.
+#define USE_STATIC_IP 1
+#define STATIC_IP_ADDRESS "192.168.15.13"
+#define STATIC_GATEWAY_ADDRESS "192.168.15.1"
+#define STATIC_SUBNET_ADDRESS "255.255.255.0"
+#define STATIC_PRIMARY_DNS "192.168.15.1"
+#define STATIC_SECONDARY_DNS "8.8.8.8"
 
 // Defines the Maximum and Minimum distance values for calculating the volume percentage
 #define WATER_MAX_DISTANCE 400.0	// Empty container (0%)
 #define WATER_MIN_DISTANCE 0.0		// Full container (100%)
+
+// ESP32-C3 SuperMini ultrasonic wiring (override as needed)
+#define ULTRASONIC_TRIG_PIN 4
+#define ULTRASONIC_ECHO_PIN 5
 
 #endif
