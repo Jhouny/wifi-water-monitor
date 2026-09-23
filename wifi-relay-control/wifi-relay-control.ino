@@ -66,17 +66,14 @@ void loop() {
 				String payload = http.getString();
 				
 				// Parse JSON
-				StaticJsonDocument<256> doc;
+				StaticJsonDocument<256> doc;  // Max size of JSON document in characters.
 				DeserializationError error = deserializeJson(doc, payload);
 
 				if (!error) {
 					float volume = doc["volume"];   
-					float distance = doc["distance"];
 
 					Serial.print("Volume: ");
 					Serial.println(volume);
-					Serial.print("Distance: ");
-					Serial.println(distance);
 
 					if (volume < 50)
 						digitalWrite(RELAY_PIN, HIGH);

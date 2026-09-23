@@ -5,6 +5,10 @@
 #define WIFI_1_SSID   "YOUR-SSID"
 #define WIFI_1_PASSW  "YOUR-PASSWORD"
 
+// Remote firmware update settings. Use a strong password and change the hostname if needed.
+#define OTA_HOSTNAME "wifi-water-monitor"
+#define OTA_PASSWORD "CHANGE-THIS-OTA-PASSWORD"
+
 // ESP32 station network settings. Set USE_STATIC_IP to 0 to use DHCP.
 #define USE_STATIC_IP 1
 #define STATIC_IP_ADDRESS "192.168.15.13"
